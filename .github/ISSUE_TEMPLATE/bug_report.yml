@@ -1,0 +1,38 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Game Shelf version
+      description: Shown in Windows Settings → Apps, or in the name of the file you downloaded.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where is the game from?
+      description: If the bug is about one game.
+      multiple: true
+      options:
+        - Steam
+        - Epic Games Store
+        - Xbox app / Microsoft Store
+        - Added by hand
+  - type: markdown
+    attributes:
+      value: Please don't paste your SteamGridDB API key or your `.env` file.

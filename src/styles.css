@@ -1,0 +1,821 @@
+:root {
+  color-scheme: dark;
+  --bg: #16161a;
+  --text: #ececf1;
+  --muted: #8b8b96;
+  --danger: #f08080;
+  --success: #7ccf9c;
+  --accent: #5b8def;
+  --surface: #24242b;
+  --panel: #1c1c21;
+  --border: #33333c;
+
+  /* Everything scales with the window, so resizing it resizes the shelf. */
+  --corner-height: 48px; /* kept clear at the top for the toolbar */
+  --box-height: max(120px, calc(100vh - var(--corner-height) - 16px));
+  --cover-width: calc(var(--box-height) * 2 / 3); /* 2:3 box art */
+  --spine-width: calc(var(--box-height) * 0.11);
+  --slant: 3%; /* how much shorter a spine's far edge is */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--text);
+}
+
+/* The shelf window is transparent: the shelf sits straight on the wallpaper. */
+html.shelf,
+html.shelf body {
+  background: transparent;
+}
+
+html.shelf body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Settings and configure are ordinary windows. */
+html.page,
+html.page body {
+  background: var(--panel);
+}
+
+/*
+ * The top-right corner. The toolbar (settings, move, resize) only appears
+ * while the pointer is in this corner, not while browsing the games.
+ */
+.corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: 160px;
+  height: var(--corner-height);
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(20, 20, 24, 0.85);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.corner:hover .toolbar,
+.toolbar:focus-within {
+  opacity: 1;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.resize-handle {
+  cursor: nesw-resize;
+}
+
+/* Clicks must land on the handles themselves for dragging to work. */
+.drag-handle svg,
+.resize-handle svg {
+  pointer-events: none;
+}
+
+main {
+  width: 100%;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+
+#shelf {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 3px;
+  height: calc(var(--box-height) + 8px);
+}
+
+/* Only used for problems (no API key, broken games.json, ...). */
+#status {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  max-width: 80%;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.9);
+  font-size: 13px;
+  text-align: center;
+  color: var(--text);
+}
+
+#status:empty {
+  display: none;
+}
+
+#status.error {
+  color: var(--danger);
+}
+
+/*
+ * One game box. The button is a plain rectangular column used for hovering
+ * and clicking; only the .face inside it changes shape. Hit-testing the face
+ * would follow its drawn shape, which shifts as tilts flip and would move the
+ * hover onto a neighbor. Boxes shrink when there are many games so they all fit.
+ */
+.box {
+  flex: 0 1 var(--spine-width);
+  min-width: 20px;
+  height: var(--box-height);
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: flex-basis 0.35s var(--ease);
+}
+
+.box.active {
+  flex: 0 0 var(--cover-width);
+}
+
+.face {
+  position: relative;
+  width: 100%;
+  height: calc(var(--box-height) - 12px);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--fallback, #333);
+  /*
+   * The tilt is faked in 2D: each spine is clipped to a trapezoid whose far
+   * edge is shorter. A real 3D rotateY renders partly see-through in a
+   * transparent WebView2 window.
+   */
+  clip-path: polygon(0 0, 100% var(--slant), 100% calc(100% - var(--slant)), 0 100%);
+  transition:
+    height 0.35s var(--ease),
+    transform 0.35s var(--ease),
+    clip-path 0.35s var(--ease);
+}
+
+/* Boxes left of the active one lean one way; these lean the other. */
+.box.right .face {
+  clip-path: polygon(0 var(--slant), 100% 0, 100% 100%, 0 calc(100% - var(--slant)));
+}
+
+.box.active .face {
+  height: var(--box-height);
+  transform: translateY(-8px);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.box:focus-visible {
+  outline: none;
+}
+
+.box:focus-visible .face {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.spine,
+.cover {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.2s;
+}
+
+.spine {
+  container-type: size;
+}
+
+/*
+ * The spine's background art, darkened so the logo stays readable. It's
+ * darkened with a filter rather than a semi-transparent black layer: in a
+ * transparent WebView2 window, that layer made the spines see-through.
+ */
+.spine-art {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.65);
+}
+
+.spine-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88cqh;
+  height: 80cqw;
+  object-fit: contain;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.spine-title {
+  position: absolute;
+  inset: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cover {
+  opacity: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-title {
+  position: relative;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.box.active .cover {
+  opacity: 1;
+  transition-delay: 0.1s;
+}
+
+.box.active .spine {
+  opacity: 0;
+}
+
+/* Settings */
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+/* The content of the settings and configure windows. */
+.panel {
+  padding: 4px 20px 20px;
+}
+
+.panel > .section:first-child {
+  border-top: none;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.section {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.section h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.hint a {
+  color: var(--accent);
+}
+
+.footer {
+  margin-top: 8px;
+  word-break: break-all;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input {
+  flex: 1;
+  min-width: 0;
+}
+
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Checkbox rows sit inline, unlike the stacked text-field labels. */
+.panel label.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 10px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel label.inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.panel select {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.panel select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.rescan-row {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rescan-row button {
+  flex-shrink: 0;
+}
+
+.rescan-row .message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.slant-row input[type="range"] {
+  flex: 1;
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  accent-color: var(--accent);
+}
+
+.slant-row input[type="range"]:disabled {
+  opacity: 0.4;
+}
+
+.slant-value {
+  min-width: 4ch;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.optional {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.panel input,
+.panel button {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.panel input {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.panel input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.panel input[readonly] {
+  color: var(--muted);
+}
+
+.panel button:not(.icon-button) {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.panel button.secondary {
+  background: var(--surface);
+  color: var(--text);
+}
+
+#add-form > button {
+  margin-top: 4px;
+}
+
+.message {
+  min-height: 1em;
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--success);
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.game-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.game-list .game-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-list .game-name {
+  font-size: 14px;
+}
+
+.game-list .game-path {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-list .empty {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.game-list .empty.error {
+  color: var(--danger);
+}
+
+.game-list button.remove {
+  height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--danger);
+}
+
+.game-list button.remove:hover {
+  background: rgba(240, 128, 128, 0.12);
+}
+
+.game-list button.unhide {
+  height: 28px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.game-list button.unhide:hover {
+  background: var(--border);
+}
+
+/* Right-click menu on a game */
+
+.menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover,
+.menu button:focus-visible {
+  background: var(--surface);
+  outline: none;
+}
+
+/* Configure window */
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+}
+
+#configure-preview {
+  width: 48px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.dialog-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dialog-heading .hint {
+  margin: 2px 0 0;
+}
+
+.match-row {
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.match-label {
+  margin: 0;
+  font-size: 14px;
+}
+
+.match-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.match-results:empty {
+  display: none;
+}
+
+.panel .match-results button {
+  height: 30px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.panel .match-results button:hover {
+  background: var(--border);
+}
+
+.match-results .empty {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.art-header {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.art-header h3 {
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.panel .tabs button {
+  height: 28px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.panel .tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.art-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile, 96px), 1fr));
+  gap: 8px;
+  padding: 2px;
+}
+
+.art-options[data-kind="hero"] {
+  --tile: 220px;
+}
+
+.art-options[data-kind="logo"] {
+  --tile: 150px;
+}
+
+.panel .art-options button {
+  position: relative;
+  height: auto;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.panel .art-options button:hover {
+  border-color: var(--border);
+}
+
+.panel .art-options button.current {
+  border-color: var(--accent);
+}
+
+.art-options img {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+}
+
+.art-options[data-kind="cover"] img {
+  aspect-ratio: 2 / 3;
+}
+
+.art-options[data-kind="hero"] img {
+  aspect-ratio: 96 / 31;
+}
+
+/* Logos are transparent; a checkerboard shows their shape. */
+.art-options[data-kind="logo"] img {
+  aspect-ratio: 2 / 1;
+  object-fit: contain;
+  padding: 8px;
+  box-sizing: border-box;
+  background: repeating-conic-gradient(#2a2a31 0 25%, #202026 0 50%) 0 0 / 16px 16px;
+}
+
+.art-options .current-tag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+}
+
+.art-options .empty {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog-footer {
+  /* Stays visible while scrolling through artwork. */
+  position: sticky;
+  bottom: 0;
+  padding-bottom: 12px;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.dialog-footer .message {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Buttons keep their size; a long message wraps instead. */
+.dialog-footer button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box,
+  .face,
+  .spine,
+  .cover {
+    transition: none;
+  }
+}

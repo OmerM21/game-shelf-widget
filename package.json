@@ -1,0 +1,16 @@
+{
+  "name": "game-shelf-widget",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A desktop widget for Windows that shows your games as book spines on a shelf.",
+  "license": "MIT",
+  "repository": "github:OmerM21/game-shelf-widget",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

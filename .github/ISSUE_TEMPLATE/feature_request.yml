@@ -1,0 +1,11 @@
+name: Feature request
+description: An idea to make the shelf better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: What you'd like the shelf to do, and why it would help you.
+    validations:
+      required: true

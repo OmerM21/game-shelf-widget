@@ -1,0 +1,17 @@
+{
+  "games": [
+    {
+      "id": "1",
+      "name": "My Game",
+      "path": "C:\\Games\\My Game\\MyGame.exe",
+      "args": ""
+    }
+  ],
+  "hidden": [],
+  "preferences": {
+    "sort": "name",
+    "hoverSound": true,
+    "slant": 3,
+    "hoverVolume": 30
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the shelf, settings and configure windows",
+  "windows": ["main", "settings", "configure-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "dialog:allow-open",
+    "opener:default"
+  ]
+}

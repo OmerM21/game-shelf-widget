@@ -1,0 +1,133 @@
+# Publishes a release for every change merged into main. See CONTRIBUTING.md
+# for how the version is chosen.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/dependabot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+# One release at a time, in merge order.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Choose the version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Choose the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Labels of the pull request this commit came from, if any.
+          labels=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '.[0].labels // [] | .[].name' || true)
+          if grep -qx 'release:skip' <<<"$labels"; then
+            echo "The pull request is labelled release:skip; not releasing."
+            exit 0
+          fi
+
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          latest=${latest#v}
+          configured=$(jq -r .version src-tauri/tauri.conf.json)
+
+          newest=$(printf '%s\n%s\n' "${latest:-0.0.0}" "$configured" | sort -V | tail -n1)
+          if [ -z "$latest" ] || { [ "$newest" = "$configured" ] && [ "$configured" != "$latest" ]; }; then
+            # First release, or the version was raised by hand: use it as is.
+            version=$configured
+          else
+            IFS=. read -r major minor patch <<<"$latest"
+            if grep -qx 'release:major' <<<"$labels"; then
+              version="$((major + 1)).0.0"
+            elif grep -qx 'release:minor' <<<"$labels"; then
+              version="$major.$((minor + 1)).0"
+            else
+              version="$major.$minor.$((patch + 1))"
+            fi
+          fi
+
+          echo "Releasing v$version (latest release: ${latest:-none})"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Build and publish
+    needs: version
+    if: needs.version.outputs.version != ''
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Stamp the version
+        run: |
+          node -e '
+            const fs = require("fs");
+            const v = process.env.VERSION;
+            for (const file of ["package.json", "src-tauri/tauri.conf.json"]) {
+              const json = JSON.parse(fs.readFileSync(file, "utf8"));
+              json.version = v;
+              fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\n");
+            }
+            const cargo = "src-tauri/Cargo.toml";
+            fs.writeFileSync(cargo, fs.readFileSync(cargo, "utf8").replace(/^version = ".*"$/m, `version = "${v}"`));
+          '
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build
+        run: npm run build
+
+      - name: Collect the downloads
+        run: |
+          mkdir dist
+          cp "src-tauri/target/release/bundle/nsis/Game Shelf_${VERSION}_x64-setup.exe" "dist/game-shelf-widget_${VERSION}_x64-setup.exe"
+          cp src-tauri/target/release/game-shelf.exe "dist/game-shelf-widget_${VERSION}_portable.exe"
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          ls -l dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Download **game-shelf-widget_${VERSION}_x64-setup.exe** to install, or **game-shelf-widget_${VERSION}_portable.exe** to run without installing. See the [README](https://github.com/${{ github.repository }}#install) for setup."
+          gh release create "v$VERSION" dist/* \
+            --target "${{ github.sha }}" \
+            --title "v$VERSION" \
+            --notes "$notes" \
+            --generate-notes

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" class="page">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configure game</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="configure.js"></script>
+  </head>
+  <body>
+    <main class="panel">
+      <header class="dialog-header">
+        <img id="configure-preview" alt="" hidden />
+        <div class="dialog-heading">
+          <h2 id="configure-title">Configure</h2>
+          <p id="configure-source" class="hint"></p>
+        </div>
+      </header>
+
+      <div class="section">
+        <h3>Name</h3>
+        <form id="rename-form" class="row">
+          <input id="rename-input" autocomplete="off" spellcheck="false" />
+          <button type="submit">Save</button>
+          <button type="button" id="rename-reset" class="secondary">Reset</button>
+        </form>
+        <p class="hint">Renaming searches SteamGridDB again under the new name.</p>
+      </div>
+
+      <div class="section">
+        <h3>SteamGridDB match</h3>
+        <div class="row match-row">
+          <p id="match-label" class="match-label"></p>
+          <button type="button" id="match-auto" class="secondary">Use automatic</button>
+        </div>
+        <form id="match-form" class="row">
+          <input id="match-query" placeholder="Search SteamGridDB" autocomplete="off" spellcheck="false" />
+          <button type="submit">Search</button>
+        </form>
+        <ul id="match-results" class="match-results"></ul>
+      </div>
+
+      <div class="section">
+        <div class="row art-header">
+          <h3>Artwork</h3>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" data-kind="cover" aria-selected="true">Cover</button>
+            <button type="button" role="tab" data-kind="hero" aria-selected="false">Spine</button>
+            <button type="button" role="tab" data-kind="logo" aria-selected="false">Logo</button>
+          </div>
+        </div>
+        <p class="hint" id="art-hint"></p>
+        <div id="art-options" class="art-options"></div>
+      </div>
+
+      <footer class="dialog-footer">
+        <p id="configure-message" class="message"></p>
+        <button type="button" id="art-top-rated" class="secondary">Use top-rated artwork</button>
+        <button type="button" id="art-rescan">Rescan artwork</button>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" class="page">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Shelf settings</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="settings.js"></script>
+  </head>
+  <body>
+    <main class="panel">
+      <div class="section">
+        <h3>General</h3>
+        <label class="check">
+          <input type="checkbox" id="autostart" />
+          Start with Windows
+        </label>
+        <label class="check">
+          <input type="checkbox" id="hover-sound" />
+          Play a sound when hovering games
+        </label>
+        <label class="inline slant-row">
+          Sound volume
+          <input type="range" id="hover-volume" min="0" max="100" step="5" />
+          <span id="hover-volume-value" class="slant-value"></span>
+        </label>
+        <label class="inline">
+          Sort games by
+          <select id="sort-order">
+            <option value="name">Name</option>
+            <option value="recent">Recently played</option>
+          </select>
+        </label>
+        <label class="inline slant-row">
+          Spine slant
+          <input type="range" id="slant" min="0" max="12" step="0.5" />
+          <span id="slant-value" class="slant-value"></span>
+        </label>
+        <p class="hint">The shelf lives on your desktop. Use the tray icon to show, hide or quit it.</p>
+        <p id="general-message" class="message"></p>
+      </div>
+
+      <div class="section">
+        <h3>SteamGridDB API key</h3>
+        <p class="hint">
+          Used to download covers and logos.
+          <a href="https://www.steamgriddb.com/profile/preferences/api" id="get-key">Get a key</a>
+        </p>
+        <form id="key-form" class="row">
+          <input id="api-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false" />
+          <button type="button" id="toggle-key" class="secondary">Show</button>
+          <button type="submit">Save</button>
+        </form>
+        <p id="key-message" class="message"></p>
+      </div>
+
+      <div class="section">
+        <h3>Your games</h3>
+        <p class="hint">Steam, Epic and Xbox games are found automatically. Add anything else here.</p>
+        <div class="row rescan-row">
+          <button type="button" id="rescan" class="secondary">Rescan games</button>
+          <p id="rescan-message" class="message"></p>
+        </div>
+        <ul id="custom-games" class="game-list"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Hidden games</h3>
+        <p class="hint">Right-click a game on the shelf to hide it.</p>
+        <ul id="hidden-games" class="game-list"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Add a game</h3>
+        <form id="add-form">
+          <div class="row">
+            <input id="add-path" placeholder="No file chosen" readonly />
+            <button type="button" id="browse">Browse…</button>
+          </div>
+          <label>
+            Name
+            <input id="add-name" placeholder="Minecraft" />
+          </label>
+          <label>
+            <span>Launch options <span class="optional">(optional)</span></span>
+            <input id="add-args" placeholder="-windowed" spellcheck="false" />
+          </label>
+          <p id="add-message" class="message"></p>
+          <button type="submit">Add game</button>
+        </form>
+      </div>
+
+      <p class="hint footer" id="data-dir"></p>
+    </main>
+  </body>
+</html>

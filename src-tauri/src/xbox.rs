@@ -26,7 +26,9 @@ fn parse_gaming_root(bytes: &[u8], drive: &Path) -> Vec<PathBuf> {
         return Vec::new();
     }
     let units: Vec<u16> = bytes[8..]
-        .as_chunks::<2>().0.iter()
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|c| u16::from_le_bytes([c[0], c[1]]))
         .collect();
     String::from_utf16_lossy(&units)

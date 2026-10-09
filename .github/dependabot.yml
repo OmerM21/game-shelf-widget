@@ -10,6 +10,9 @@ updates:
     directory: /src-tauri
     schedule:
       interval: monthly
+    ignore:
+      # Must match the version webview2-com is built on; updated together with it.
+      - dependency-name: windows-core
     groups:
       cargo:
         patterns: ["*"]
